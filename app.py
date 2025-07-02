@@ -2,24 +2,26 @@ import streamlit as st
 from transformers import pipeline
 import language_tool_python
 
-# Load summarization model
+# Load summarization model (cached for performance)
 @st.cache_resource
 def load_model():
     return pipeline("summarization", model="facebook/bart-large-cnn")
 
 summarizer = load_model()
-tool = language_tool_python.LanguageTool('en-US')
+
+# Use LanguageTool Public API (Java not required)
+tool = language_tool_python.LanguageToolPublicAPI('en-US')
 
 st.set_page_config(page_title="Text Summarizer & Grammar Checker", layout="centered")
 st.title("📝 Text Summarizer with Grammar Check")
 
-text_input = st.text_area("Paste your text here", height=300)
+text_input = st.text_area("📥 Paste your text here", height=300)
 
 if st.button("Analyze"):
     if not text_input.strip():
-        st.warning("Please enter some text.")
+        st.warning("Please enter some text to analyze.")
     else:
-        with st.spinner("Analyzing..."):
+        with st.spinner("🔍 Analyzing..."):
 
             # Grammar check
             matches = tool.check(text_input)
