@@ -1,16 +1,23 @@
 import streamlit as st
 from transformers import pipeline
 import language_tool_python
+from language_tool_python.utils import RateLimitError
 
-# Load summarization model (cached for performance)
+# Load summarizer model
 @st.cache_resource
 def load_model():
     return pipeline("summarization", model="facebook/bart-large-cnn")
 
 summarizer = load_model()
 
-# Use LanguageTool Public API (Java not required)
-tool = language_tool_python.LanguageToolPublicAPI('en-US')
+# Use LanguageTool Public API
+def get_grammar_issues(text):
+    try:
+        tool = language_tool_python.LanguageToolPublicAPI('en-US')
+        matches = tool.check(text)
+        return [match.message for match in matches]
+    except RateLimitError:
+        return "RATE_LIMIT"
 
 st.set_page_config(page_title="Text Summarizer & Grammar Checker", layout="centered")
 st.title("📝 Text Summarizer with Grammar Check")
@@ -23,12 +30,11 @@ if st.button("Analyze"):
     else:
         with st.spinner("🔍 Analyzing..."):
 
-            # Grammar check
-            matches = tool.check(text_input)
-            grammar_issues = [match.message for match in matches]
-
             # Word count
             word_count = len(text_input.split())
+
+            # Grammar check
+            grammar_issues = get_grammar_issues(text_input)
 
             # Summarization
             summary = summarizer(text_input, max_length=120, min_length=30, do_sample=False)[0]['summary_text']
@@ -40,7 +46,9 @@ if st.button("Analyze"):
         st.write(word_count)
 
         st.subheader("🧠 Grammar Issues")
-        if grammar_issues:
+        if grammar_issues == "RATE_LIMIT":
+            st.error("⚠️ Rate limit reached for LanguageTool public API. Try again later.")
+        elif grammar_issues:
             for issue in grammar_issues:
                 st.write(f"🔸 {issue}")
         else:
